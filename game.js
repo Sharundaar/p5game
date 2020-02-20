@@ -95,13 +95,47 @@ class RectComponent {
     }
 }
 
+class GridComponent {
+    constructor( xspan, yspan ) {
+        this.span = new Vector2( xspan, yspan );
+    }
+
+    draw() {
+        fill( 0 );
+        let x = this.span.x;
+        while( x < width ) {
+            line( x, 0, x, height );
+            x += this.span.x;
+        }
+        let y = this.span.y;
+        while( y < height ) {
+            line( 0, y, width, y );
+            y += this.span.y;
+        }
+        fill( 255 );
+    }
+}
+
 class PlayerComponent {
     constructor() {
         this.name = "player";
+        this.speed = 100;
+
+        this.velocity = new Vector2(0, 0);
     }
 
     update() {
+        this.velocity.x = 0;
+        this.velocity.y = 0;
+
+        if( keyCode == LEFT_ARROW )
+            this.velocity.x -= this.speed;
+        else if( keyCode == RIGHT_ARROW )
+            this.velocity.x += this.speed;
         this.owner.transform.angle += Timer.delta;
+
+        this.owner.transform.origin.x += this.velocity.x * Timer.delta;
+        this.owner.transform.origin.y += this.velocity.y * Timer.delta;
     }
 }
 
@@ -153,6 +187,10 @@ function setup() {
 
     Timer.init();
 
+    let grid = new Entity();
+    grid.add_component( new GridComponent( 16, 16 ) );
+    entities.push( grid );
+    
     let player = new Entity();
     player.add_component( new RectComponent( 40, 40 ) );
     player.add_component( new PlayerComponent() );
@@ -164,6 +202,7 @@ function setup() {
     circle.add_component( new CircleComponent( 40 ) );
     circle.transform.origin = new Vector2( width / 2, height / 2 );
     entities.push( circle );
+
 }
 
 function update() {
