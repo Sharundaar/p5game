@@ -49,9 +49,26 @@ class Timer {
 class Transform {
     constructor() {
         this.name = "transform";
+        this.children = [];
+        this.parent = null;
 
         this.origin = new Vector2( 0, 0 );
         this.angle = 0;
+    }
+
+    add_child( child ) {
+        if( child.parent != this && child.parent != null )
+            child.parent.remove_child( child );
+        this.children.push( child );
+        child.parent = this;
+    }
+
+    remove_child( child ) {
+        const idx = this.children.indexOf( child );
+        if( idx > -1 ) {
+            this.children.splice( idx );
+            child.parent = null;
+        }
     }
 
     push() {
@@ -62,6 +79,13 @@ class Transform {
     pop() {
         rotate( -this.angle );
         translate( -this.origin.x, -this.origin.y );
+    }
+
+    destroy() {
+        for( let child of this.children )
+            child.owner.destroy();
+        if( this.parent != null )
+            this.parent.remove_child( this );
     }
 }
 
@@ -75,9 +99,7 @@ class CircleComponent {
     }
 
     draw() {
-        this.owner.transform.push();
         circle( 0, 0, this.radius );
-        this.owner.transform.pop();
     }
 }
 
@@ -89,9 +111,7 @@ class RectComponent {
     }
 
     draw() {
-        this.owner.transform.push();
         rect( -this.w / 2, -this.h / 2, this.w, this.h );
-        this.owner.transform.pop();
     }
 }
 
@@ -140,9 +160,10 @@ class PlayerComponent {
 }
 
 class Entity {
-    constructor() {
-        this.components = [];
+    constructor( name ) {
+        this.name = name;
 
+        this.components = [];
         this.transform = new Transform();
         this.add_component( this.transform );
     }
@@ -156,7 +177,12 @@ class Entity {
     }
 
     remove_component( component ) {
-
+        const idx = this.components.indexOf( component );
+        if( idx > -1 ) {
+            if( typeof( component.destroy ) == "function" )
+                component.destroy();
+            this.components.splice( idx );
+        }
     }
 
     get_component( type ) {
@@ -170,38 +196,61 @@ class Entity {
         for( let component of this.components ) {
             if ( typeof( component.update ) == "function" ) component.update();
         }
+        for( let child of this.transform.children )
+            child.owner.update();
     }
 
     draw() {
+        this.transform.push();
         for( let component of this.components ) {
             if ( typeof( component.draw ) == "function" )
                 component.draw();
         }
+        for( let child of this.transform.children ) {
+            child.owner.draw();
+        }
+
+        this.transform.pop();
+    }
+
+    destroy() {
+        for( let component of this.components ) {
+            if( typeof( component.destroy ) == "function" )
+                component.destroy();
+        }
+        this.component = null;
     }
 }
 
-let entities = [];
+let scene_root = null;
+
+function create_entity( name ) {
+    let entity = new Entity( name );
+    scene_root.transform.add_child( entity.transform );
+    return entity;
+}
 
 function setup() {
     createCanvas( 800, 600 );
 
     Timer.init();
 
-    let grid = new Entity();
-    grid.add_component( new GridComponent( 16, 16 ) );
-    entities.push( grid );
+    scene_root = new Entity( "root" );
+    scene_root.add_component( new GridComponent( 16, 16 ) );
     
-    let player = new Entity();
+    let player = create_entity( "player" );
     player.add_component( new RectComponent( 40, 40 ) );
     player.add_component( new PlayerComponent() );
     player.transform.origin = new Vector2( width / 2, height / 2 );
+    
+    let playerHead = create_entity( "player_head" );
+    playerHead.add_component( new CircleComponent( 40 ) );
+    playerHead.transform.origin = new Vector2( 0, 80 );
+    player.transform.add_child( playerHead.transform );
 
-    entities.push( player );
-
-    let circle = new Entity();
+    let circle = create_entity( "circle" );
     circle.add_component( new CircleComponent( 40 ) );
     circle.transform.origin = new Vector2( width / 2, height / 2 );
-    entities.push( circle );
 
 }
 
@@ -212,14 +261,14 @@ function update() {
 
 function draw() {
     Timer.tick();
-    update();
+    
+    scene_root.update();
 
     background( 128 );
 
     scale( 1, -1 );
     translate( 0, -height );
-    for( let entity of entities )
-        entity.draw();
+    scene_root.draw();
     translate( 0, height );
     scale( 1, -1 );
 
