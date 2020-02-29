@@ -47,22 +47,39 @@ class Timer {
 
 class Input {
     static keyPressed( key ) {
-        this.pressed_key[key] = true;
+        this.key_down[key] = true;
+        return true;
     }
 
     static keyReleased( key ) {
-        this.pressed_key[key] = false;
+        this.key_down[key] = false;
+        return true;
     }
 
     static init() {
-        this.pressed_key = [];
+        this.key_down = [];
+        this.prev_key_down = [];
     }
 
     static update() {
-
+        for( let [key, is_down] of Object.entries( this.key_down ) ) {
+            this.prev_key_down[key] = is_down;
+        }
     }
 
     static is_key_down( key ) {
-        return this.pressed_key[key] === true;
+        return this.key_down[key] === true;
+    }
+
+    static is_key_up( key ) {
+        return !this.is_key_down( key );
+    }
+
+    static is_key_down_first_frame( key ) {
+        return this.prev_key_down[key] !== true && this.is_key_down( key );
+    }
+
+    static is_key_up_first_frame( key ) {
+        return this.prev_key_down[key] === true && this.is_key_up( key );
     }
 }
